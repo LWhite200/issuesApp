@@ -7,16 +7,15 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['pass'];
 
     // Prepare SQL statement to prevent SQL injection
-    $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
+    $stmt = $conn->prepare("SELECT * FROM persons WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
-    
-    if ($result->num_rows === 1) {
-        $user = $result->fetch_assoc();
 
-        // Verify password hash
-        if (password_verify($password, $user['password'])) {
+    // Check if a user with the provided email exists
+    if ($user = $result->fetch_assoc()) {
+        // User exists, now verify password hash
+        if (password_verify($password, $user['pwd_hash'])) {
             $_SESSION['user'] = $user;
             header("Location: crud.php");
             exit();
@@ -24,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $error_message = "Invalid email or password.";
         }
     } else {
-        $error_message = "Invalid email or password.";
+        // No user found with that email
+        $error_message = "sthfthg.";
     }
 
     $stmt->close();
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     
     <?php if (isset($error_message)) { echo "<p style='color:red;'>$error_message</p>"; } ?>
     
-    <p><a href="registration-form-bcrypt.php">Register here</a></p>
+    <p><a href="registration.php">Register here</a></p>
     <p><a href="home-page.php">Return to home</a></p>
 </body>
 </html>
