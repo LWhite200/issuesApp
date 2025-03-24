@@ -17,13 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $salt = substr($hashed_password, 0, 29);
 
     // Prepare the SQL statement to insert the new user into the database
-    $stmt = $conn->prepare("INSERT INTO persons (fname, lname, mobile, email, pwd_hash, pwd_salt) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt = $conn->prepare("INSERT INTO iss_persons (fname, lname, mobile, email, pwd_hash, pwd_salt) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("ssssss", $fname, $lname, $mobile, $email, $hashed_password, $salt);
 
     // Execute the query and check for success
     if ($stmt->execute()) {
-        // Registration successful
-        echo "Registration successful! You can now <a href='login.php'>login</a>.";
+        // Registration successful - redirect to login page (or directly to the issue list if desired)
+        header("Location: login.php");
+        exit();
     } else {
         // Error in registration
         echo "Error: " . $stmt->error;

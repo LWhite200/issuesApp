@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['pass'];
 
     // Prepare SQL statement to prevent SQL injection
-    $stmt = $conn->prepare("SELECT * FROM persons WHERE email = ?");
+    $stmt = $conn->prepare("SELECT * FROM iss_persons WHERE email = ?");
     $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         // User exists, now verify password hash
         if (password_verify($password, $user['pwd_hash'])) {
             $_SESSION['user'] = $user;
-            header("Location: crud.php");
+            header("Location: issue_list.php");
             exit();
         } else {
             $error_message = "Invalid email or password.";
