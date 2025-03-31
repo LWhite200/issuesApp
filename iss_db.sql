@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Mar 19, 2025 at 04:39 PM
+-- Generation Time: Mar 31, 2025 at 06:03 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -36,6 +36,15 @@ CREATE TABLE `iss_comments` (
   `posted_date` date NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+--
+-- Dumping data for table `iss_comments`
+--
+
+INSERT INTO `iss_comments` (`id`, `per_id`, `iss_id`, `short_comment`, `long_comment`, `posted_date`) VALUES
+(1, 1, 5, 'this short', 'this long comment', '0000-00-00'),
+(2, 3, 3, 'short comment', 'I love working at subway', '2025-03-31'),
+(3, 3, 3, 'Please Add Feature to remove Comments', 'I would love it if you or Tyler would add a feature to remove comments and or edit them, that would be nice. Praise the bald lord.', '2025-03-31');
+
 -- --------------------------------------------------------
 
 --
@@ -51,15 +60,19 @@ CREATE TABLE `iss_issues` (
   `priority` varchar(255) NOT NULL,
   `org` varchar(255) NOT NULL,
   `project` varchar(255) NOT NULL,
-  `per_id` int(11) NOT NULL
+  `per_id` int(11) NOT NULL,
+  `pdf_attachment` varchar(255) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `iss_issues`
 --
 
-INSERT INTO `iss_issues` (`id`, `short_description`, `long_description`, `open_date`, `close_date`, `priority`, `org`, `project`, `per_id`) VALUES
-(3, 'short', 'long', '0000-00-00', '0000-00-00', 'xdrg', 'dzfg', 'zdfg', 2);
+INSERT INTO `iss_issues` (`id`, `short_description`, `long_description`, `open_date`, `close_date`, `priority`, `org`, `project`, `per_id`, `pdf_attachment`) VALUES
+(3, 'short', 'long', '0000-00-00', '0000-00-00', 'xdrg', 'dzfg', 'zdfg', 2, ''),
+(4, 'This is my issue', 'I am tired of working, why can\'t I get paid to sleep and get cheetos?', '5555-09-05', '0000-00-00', 'Big', 'The school', 'Chemistry', 3, ''),
+(5, 'pdf issue', 'dddd', '1111-11-11', '0000-00-00', 'Big', 'The school', 'Chemistry', 3, NULL),
+(6, 'wesrfgb', 'xghm ', '1111-11-11', '0000-00-00', 'Big', 'The school', 'Chemistry', 3, './uploads/40653e0a3906cd2db0df86cec4475fd0.pdf');
 
 -- --------------------------------------------------------
 
@@ -84,7 +97,8 @@ CREATE TABLE `iss_persons` (
 
 INSERT INTO `iss_persons` (`id`, `fname`, `lname`, `mobile`, `email`, `pwd_hash`, `pwd_salt`, `admin`) VALUES
 (1, 'George', 'Corser', '', '', '', '', ''),
-(2, 'Lukas', 'White', '911', 'l@w', '$2y$10$ue0FjArYOvnwO/tXjs2EO.L7cvGsnuAWRB3KjZJvMRyTyNg65MPpG', '$2y$10$ue0FjArYOvnwO/tXjs2EO.', '1');
+(2, 'Lukas', 'White', '911', 'l@w', '$2y$10$ue0FjArYOvnwO/tXjs2EO.L7cvGsnuAWRB3KjZJvMRyTyNg65MPpG', '$2y$10$ue0FjArYOvnwO/tXjs2EO.', '1'),
+(3, 'Tyler', 'Black', '911', 'l@l', '$2y$10$az6TcJvvoF./WTiZd5qVZ.LDKEqvAvoDCnabKtNq0dKFXj1dVXpAy', '$2y$10$az6TcJvvoF./WTiZd5qVZ.', '');
 
 --
 -- Indexes for dumped tables
@@ -116,19 +130,19 @@ ALTER TABLE `iss_persons`
 -- AUTO_INCREMENT for table `iss_comments`
 --
 ALTER TABLE `iss_comments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `iss_issues`
 --
 ALTER TABLE `iss_issues`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `iss_persons`
 --
 ALTER TABLE `iss_persons`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
