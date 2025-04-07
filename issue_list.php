@@ -60,7 +60,6 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                     <th>Open Date</th>
                     <th>Close Date</th>
                     <th>Priority</th>
-                    <th>PDF Attached</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -73,15 +72,8 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                         <td><?php echo htmlspecialchars($issue['close_date']); ?></td>
                         <td><?php echo htmlspecialchars($issue['priority']); ?></td>
                         <td>
-                            <?php if (!empty($issue['pdf_attachment'])): ?>
-                                <span>Yes</span>
-                            <?php else: ?>
-                                <span>N/A</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
                             <!-- Action Buttons -->
-                            <a href="issue.php?id=<?php echo $issue['id']; ?>">Read</a> | 
+                            <a href="issue.php?id=<?php echo $issue['id']; ?>" class="btn btn-info">Read</a>
 
                             <?php 
                             // Only show the Edit link if the user is the one who uploaded the issue or if the user is an admin
@@ -128,7 +120,7 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                     <form action="add_issue.php" method="POST" enctype="multipart/form-data">
                         <label>Short Description: <input type="text" name="short_description" required class="form-control"></label><br>
                         <label>Long Description: <textarea name="long_description" required class="form-control"></textarea></label><br>
-                        <label>Open Date: <input type="date" name="open_date" required class="form-control"></label><br>
+                        
                         <label>Priority: <input type="text" name="priority" required class="form-control"></label><br>
                         <label>Organization: <input type="text" name="org" required class="form-control"></label><br>
                         <label>Project: <input type="text" name="project" required class="form-control"></label><br>

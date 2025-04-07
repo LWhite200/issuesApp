@@ -15,7 +15,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Get the form data
     $short_description = $_POST['short_description'];
     $long_description = $_POST['long_description'];
-    $open_date = $_POST['open_date'];
+    $open_date = date('Y-m-d');
     $priority = $_POST['priority']; // Simple string for priority
     $org = $_POST['org'];
     $project = $_POST['project'];

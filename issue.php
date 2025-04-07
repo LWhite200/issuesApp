@@ -37,6 +37,13 @@ if (isset($_GET['id'])) {
     $commentStmt->execute();
     $commentResult = $commentStmt->get_result();
 
+    // Fetch the PDF file path if it exists
+    $pdf_stmt = $conn->prepare("SELECT pdf_attachment FROM iss_issues WHERE id = ?");
+    $pdf_stmt->bind_param("i", $id);
+    $pdf_stmt->execute();
+    $pdf_result = $pdf_stmt->get_result();
+    $pdf_issue = $pdf_result->fetch_assoc();
+
 } else {
     die("Issue ID is required.");
 }
@@ -73,7 +80,6 @@ if (isset($_GET['delete_comment'])) {
         die("You do not have permission to delete this comment.");
     }
 }
-
 
 // Handle adding a new comment
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['short_comment'], $_POST['long_comment'])) {
@@ -279,10 +285,20 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             <p><strong>Project:</strong> <?php echo htmlspecialchars($issue['project']); ?></p>
             <?php if ($person): ?>
                 <p><strong>Person:</strong> <a href="person.php?id=<?php echo $person_id; ?>"><?php echo htmlspecialchars($person['fname']) . ' ' . htmlspecialchars($person['lname']); ?></a></p>
+                
+                <!-- Show PDF download link directly below the person who uploaded the issue -->
+                <?php if (!empty($pdf_issue['pdf_attachment'])): ?>
+                    <div class="card">
+                        <p><strong>Download PDF:</strong></p>
+                        <a href="uploads/<?php echo htmlspecialchars($pdf_issue['pdf_attachment']); ?>" download>Download PDF Here</a>
+                    </div>
+                <?php endif; ?>
+
             <?php else: ?>
-                <p><strong>Person:</strong> Person deleted</p>
+                <p><strong>Person: </strong>[User Deleted]</p>
             <?php endif; ?>
         </div>
+
 
         <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $issue['per_id'])): ?>
             <div class="card">
@@ -301,11 +317,20 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             $commentPersonResult = $commentPersonStmt->get_result();
             $commentPerson = $commentPersonResult->fetch_assoc();
             ?>
-            <div class="card comment-card"> <!-- Added the 'comment-card' class here -->
-            <p><strong>Comment by:</strong> <?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?></p>
-            <p><a href="#" class="comment-link" data-fullname="<?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?>" data-longcomment="<?php echo htmlspecialchars($comment['long_comment']); ?>" data-posteddate="<?php echo htmlspecialchars($comment['posted_date']); ?>"><?php echo htmlspecialchars($comment['short_comment']); ?></a></p>
+            <div class="card comment-card">
+                <p><strong>Comment by:</strong> 
+                    <?php if ($commentPerson): ?>
+                        <a href="person.php?id=<?php echo $comment['per_id']; ?>">
+                            <?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?>
+                        </a>
+                    <?php else: ?>
+                        <span>Deleted User</span>
+                    <?php endif; ?>
+                </p>
+                <p><a href="#" class="comment-link" data-fullname="<?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?>" data-longcomment="<?php echo htmlspecialchars($comment['long_comment']); ?>" data-posteddate="<?php echo htmlspecialchars($comment['posted_date']); ?>">
+                    <?php echo htmlspecialchars($comment['short_comment']); ?>
+                </a></p>
 
-                <!-- Display Delete Button if User is Admin or is the Comment Author -->
                 <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $comment['per_id'])): ?>
                     <a href="issue.php?id=<?php echo $id; ?>&delete_comment=<?php echo $comment['id']; ?>" class="delete-btn" onclick="return confirm('Are you sure you want to delete this comment?');">Delete Comment</a>
                 <?php endif; ?>
@@ -313,7 +338,6 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         <?php endwhile; ?>
 
         <button id="addCommentBtn" class="button">Add Comment</button>
-
         <!-- Modal for Adding Comment -->
         <div id="addCommentModal" class="modal">
             <div class="modal-content">
@@ -334,23 +358,19 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         </div>
 
         <!-- Modal for displaying full comment details -->
-        <!-- Modal for displaying full comment details -->
         <div id="commentModal" class="modal">
             <div class="modal-content">
                 <span class="close" id="closeCommentModal">&times;</span>
                 <h2>Comment Details</h2>
-                <p><strong>Comment by:</strong> <span id="commentPerson"></span></p> <!-- This will now display the full name -->
+                <p><strong>Comment by:</strong> <span id="commentPerson"></span></p>
                 <p><strong>Posted on:</strong> <span id="commentDate"></span></p>
                 <p><strong>Full Comment:</strong></p>
                 <p id="commentLong"></p>
             </div>
         </div>
-
     </div>
 
     <script>
-        // Modal for adding comment
-        // Modal for adding comment
         // Modal for adding comment
         var modal = document.getElementById("addCommentModal");
         var btn = document.getElementById("addCommentBtn");
@@ -371,43 +391,35 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         var closeCommentModal = document.getElementById("closeCommentModal");
 
         // Handle clicks on comment links
-        // Handle clicks on comment links
         document.querySelectorAll(".comment-link").forEach(function(link) {
             link.addEventListener("click", function(event) {
                 event.preventDefault();
 
-                // Get full name from the data-fullname attribute
-                var commentPersonName = link.getAttribute("data-fullname");  // Fetch the full name
+                var commentPersonName = link.getAttribute("data-fullname");
                 var postedDate = link.getAttribute("data-posteddate");
                 var longComment = link.getAttribute("data-longcomment");
 
-                // Insert the full name into the modal
-                document.getElementById("commentPerson").textContent = commentPersonName;  // Display the full name here
+                document.getElementById("commentPerson").textContent = commentPersonName;
                 document.getElementById("commentDate").textContent = postedDate;
                 document.getElementById("commentLong").textContent = longComment;
 
-                // Show the modal
-                commentModal.style.display = "block";  
+                commentModal.style.display = "block";
             });
         });
 
-
-        // Close the comment modal
         closeCommentModal.onclick = function() {
             commentModal.style.display = "none";
         }
 
-        // Close both modals when clicking outside of them
         window.onclick = function(event) {
-            if (event.target == modal) {  // If clicking outside the "Add Comment" modal
+            if (event.target == modal) {
                 modal.style.display = "none";
-            } else if (event.target == commentModal) {  // If clicking outside the comment modal
+            } else if (event.target == commentModal) {
                 commentModal.style.display = "none";
             }
         }
-
-
     </script>
+
 </body>
 </html>
 
