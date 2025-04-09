@@ -133,6 +133,7 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
     </div>
 
     <!-- Edit Issue Modal -->
+    <!-- Edit Issue Modal -->
     <div class="modal fade" id="editIssueModal" tabindex="-1" aria-labelledby="editIssueModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -149,12 +150,25 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                         <label>Priority: <input type="text" name="priority" id="edit-priority" required class="form-control"></label><br>
                         <label>Organization: <input type="text" name="org" id="edit-org" required class="form-control"></label><br>
                         <label>Project: <input type="text" name="project" id="edit-project" required class="form-control"></label><br>
+                        
+                        <?php if ($issue['pdf_attachment']): ?>
+                            <!-- Display existing PDF and option to remove it -->
+                            <div>
+                                <label>Current PDF: <a href="<?php echo htmlspecialchars($issue['pdf_attachment']); ?>" target="_blank">View PDF</a></label><br>
+                                <label><input type="checkbox" name="remove_pdf" value="1"> Remove existing PDF</label><br>
+                            </div>
+                        <?php else: ?>
+                            <!-- Option to upload a new PDF if none exists -->
+                            <label>Attach PDF: <input type="file" name="pdf_attachment" accept="application/pdf" class="form-control"></label><br>
+                        <?php endif; ?>
+
                         <button type="submit" class="btn btn-warning">Update Issue</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Bootstrap JS & Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>

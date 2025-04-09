@@ -13,11 +13,11 @@ if ($user['admin'] != 1) {
     die("You do not have permission to edit this issue.");
 }
 
-if (!isset($_GET['id'])) {
+if (!isset($_POST['id'])) {
     die("Issue ID is required.");
 }
 
-$issue_id = $_GET['id'];
+$issue_id = $_POST['id'];  // Get issue_id from the POST request
 
 // Fetch the issue details
 $stmt = $conn->prepare("SELECT * FROM iss_issues WHERE id = ?");
@@ -39,57 +39,57 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $project = $_POST['project'];
     $per_id = $_POST['per_id'];  // Person ID who is responsible for the issue
 
-    // Update the issue information
-    $updateStmt = $conn->prepare("UPDATE iss_issues SET short_description = ?, long_description = ?, priority = ?, org = ?, project = ?, per_id = ? WHERE id = ?");
-    $updateStmt->bind_param("sssssii", $short_description, $long_description, $priority, $org, $project, $per_id, $issue_id);
+    // Handle new PDF upload or removal
+    if (isset($_FILES['pdf_attachment']) && $_FILES['pdf_attachment']['error'] == 0) {
+        // New PDF uploaded, validate and move it
+        $file_tmp = $_FILES['pdf_attachment']['tmp_name'];
+        $file_name = $_FILES['pdf_attachment']['name'];
+        $file_ext = pathinfo($file_name, PATHINFO_EXTENSION);
+
+        if ($file_ext == 'pdf') {
+            // Generate a unique file name using md5
+            $new_pdf_name = md5(time() . $file_name) . '.' . $file_ext;
+            $new_pdf_path = './uploads/' . $new_pdf_name;
+
+            // Create the uploads directory if it doesn't exist
+            if (!is_dir('./uploads')) {
+                mkdir('./uploads', 0755, true);
+            }
+
+            // Move the uploaded file to the server
+            move_uploaded_file($file_tmp, $new_pdf_path);
+
+            // Delete the old PDF if it exists
+            if ($issue['pdf_attachment'] && file_exists($issue['pdf_attachment'])) {
+                unlink($issue['pdf_attachment']);  // Remove the old file
+            }
+
+            $pdf_attachment = $new_pdf_path;  // Update PDF path in the database
+        } else {
+            die("Invalid file type. Only PDF files are allowed.");
+        }
+    } elseif (isset($_POST['remove_pdf']) && $_POST['remove_pdf'] == '1') {
+        // PDF is being removed
+        if ($issue['pdf_attachment'] && file_exists($issue['pdf_attachment'])) {
+            unlink($issue['pdf_attachment']);  // Delete existing file
+        }
+        $pdf_attachment = '';  // Clear the attachment (set it to empty string)
+    } else {
+        // No file uploaded and no removal flag set, keep the current attachment
+        $pdf_attachment = $issue['pdf_attachment'];  // Retain current PDF
+    }
+
+    // Update the issue information including the PDF attachment
+    $updateStmt = $conn->prepare("UPDATE iss_issues SET short_description = ?, long_description = ?, priority = ?, org = ?, project = ?, per_id = ?, pdf_attachment = ? WHERE id = ?");
+    $updateStmt->bind_param("sssssssi", $short_description, $long_description, $priority, $org, $project, $per_id, $pdf_attachment, $issue_id);
 
     if ($updateStmt->execute()) {
-        header("Location: issue.php?id=$issue_id&message=Issue updated successfully");
+        header("Location: issue_list.php?id=$issue_id&message=Issue updated successfully");
         exit();
     } else {
         die("Error updating issue: " . $conn->error);
     }
 }
+
+$conn->close();
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Issue</title>
-</head>
-<body>
-    <h1>Edit Issue</h1>
-
-    <form method="POST" action="">
-        <label for="short_description">Short Description:</label>
-        <input type="text" name="short_description" id="short_description" value="<?php echo htmlspecialchars($issue['short_description']); ?>" required><br><br>
-
-        <label for="long_description">Long Description:</label>
-        <textarea name="long_description" id="long_description" required><?php echo htmlspecialchars($issue['long_description']); ?></textarea><br><br>
-
-        <label for="priority">Priority:</label>
-        <select name="priority" id="priority" required>
-            <option value="Low" <?php echo $issue['priority'] == 'Low' ? 'selected' : ''; ?>>Low</option>
-            <option value="Medium" <?php echo $issue['priority'] == 'Medium' ? 'selected' : ''; ?>>Medium</option>
-            <option value="High" <?php echo $issue['priority'] == 'High' ? 'selected' : ''; ?>>High</option>
-        </select><br><br>
-
-        <label for="org">Organization:</label>
-        <input type="text" name="org" id="org" value="<?php echo htmlspecialchars($issue['org']); ?>" required><br><br>
-
-        <label for="project">Project:</label>
-        <input type="text" name="project" id="project" value="<?php echo htmlspecialchars($issue['project']); ?>" required><br><br>
-
-        <label for="per_id">Assigned Person:</label>
-        <input type="number" name="per_id" id="per_id" value="<?php echo $issue['per_id']; ?>" required><br><br>
-
-        <button type="submit">Update Issue</button>
-    </form>
-
-    <p><a href="issue.php?id=<?php echo $issue['id']; ?>">Back to Issue</a></p>
-</body>
-</html>
-
-<?php $conn->close(); ?>

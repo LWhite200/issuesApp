@@ -37,13 +37,6 @@ if (isset($_GET['id'])) {
     $commentStmt->execute();
     $commentResult = $commentStmt->get_result();
 
-    // Fetch the PDF file path if it exists
-    $pdf_stmt = $conn->prepare("SELECT pdf_attachment FROM iss_issues WHERE id = ?");
-    $pdf_stmt->bind_param("i", $id);
-    $pdf_stmt->execute();
-    $pdf_result = $pdf_stmt->get_result();
-    $pdf_issue = $pdf_result->fetch_assoc();
-
 } else {
     die("Issue ID is required.");
 }
@@ -285,20 +278,20 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             <p><strong>Project:</strong> <?php echo htmlspecialchars($issue['project']); ?></p>
             <?php if ($person): ?>
                 <p><strong>Person:</strong> <a href="person.php?id=<?php echo $person_id; ?>"><?php echo htmlspecialchars($person['fname']) . ' ' . htmlspecialchars($person['lname']); ?></a></p>
-                
-                <!-- Show PDF download link directly below the person who uploaded the issue -->
-                <?php if (!empty($pdf_issue['pdf_attachment'])): ?>
-                    <div class="card">
-                        <p><strong>Download PDF:</strong></p>
-                        <a href="uploads/<?php echo htmlspecialchars($pdf_issue['pdf_attachment']); ?>" download>Download PDF Here</a>
-                    </div>
-                <?php endif; ?>
-
             <?php else: ?>
                 <p><strong>Person: </strong>[User Deleted]</p>
             <?php endif; ?>
-        </div>
 
+            <!-- PDF Attachment -->
+            <p><strong>PDF Attachment:</strong> 
+                <?php if ($issue['pdf_attachment']): ?>
+                    <a href="uploads/<?php echo htmlspecialchars($issue['pdf_attachment']); ?>" target="_blank">View PDF</a> | 
+                    <a href="uploads/<?php echo htmlspecialchars($issue['pdf_attachment']); ?>" download>Download PDF</a>
+                <?php else: ?>
+                    No PDF available.
+                <?php endif; ?>
+            </p>
+        </div>
 
         <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $issue['per_id'])): ?>
             <div class="card">
