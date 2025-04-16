@@ -1,3 +1,8 @@
+<!-- mark issues as resolved -->
+<!-- edit comments -->
+
+<!-- deleting people (only admins) -->
+
 <?php
 include 'config.php';
 session_start();
@@ -51,6 +56,15 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
         Add New Issue
     </button>
 
+    <!-- Go to Person List Button -->
+    <a href="persons_list.php" class="btn btn-secondary ms-2">
+        Go to Person List
+    </a>
+
+    <a href="comment_list.php" class="btn btn-secondary ms-2">
+        Go to Comment List
+    </a>
+
     <?php if (count($issues) > 0): ?>
         <table class="table table-bordered">
             <thead>
@@ -60,7 +74,6 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                     <th>Open Date</th>
                     <th>Close Date</th>
                     <th>Priority</th>
-                    <th>PDF Attached</th>
                     <th>Action</th>
                 </tr>
             </thead>
@@ -70,18 +83,15 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                         <td><?php echo htmlspecialchars($issue['id']); ?></td>
                         <td><a href="issue.php?id=<?php echo $issue['id']; ?>"><?php echo htmlspecialchars($issue['short_description']); ?></a></td>
                         <td><?php echo htmlspecialchars($issue['open_date']); ?></td>
-                        <td><?php echo htmlspecialchars($issue['close_date']); ?></td>
-                        <td><?php echo htmlspecialchars($issue['priority']); ?></td>
                         <td>
-                            <?php if (!empty($issue['pdf_attachment'])): ?>
-                                <span>Yes</span>
-                            <?php else: ?>
-                                <span>N/A</span>
-                            <?php endif; ?>
+                            <?php echo ($issue['close_date'] === '0000-00-00' || empty($issue['close_date'])) ? 'Unresolved' : htmlspecialchars($issue['close_date']); ?>
+                        </td>
+                        <td>
+                            <?php echo ($issue['close_date'] === '0000-00-00' || empty($issue['close_date'])) ? htmlspecialchars($issue['priority']) : ''; ?>
                         </td>
                         <td>
                             <!-- Action Buttons -->
-                            <a href="issue.php?id=<?php echo $issue['id']; ?>">Read</a> | 
+                            <a href="issue.php?id=<?php echo $issue['id']; ?>" class="btn btn-info">Read</a>
 
                             <?php 
                             // Only show the Edit link if the user is the one who uploaded the issue or if the user is an admin
@@ -113,7 +123,7 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
             </tbody>
         </table>
     <?php else: ?>
-        <p>No issues found. <a href="add_issue.php">Add a new issue</a></p>
+        <p>No issues found.</p>
     <?php endif; ?>
 
     <!-- Add Issue Modal -->
@@ -128,8 +138,17 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                     <form action="add_issue.php" method="POST" enctype="multipart/form-data">
                         <label>Short Description: <input type="text" name="short_description" required class="form-control"></label><br>
                         <label>Long Description: <textarea name="long_description" required class="form-control"></textarea></label><br>
-                        <label>Open Date: <input type="date" name="open_date" required class="form-control"></label><br>
-                        <label>Priority: <input type="text" name="priority" required class="form-control"></label><br>
+                        
+                        <label>Priority:
+                            <select name="priority" class="form-control" required>
+                                <option value="">Select Priority</option>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                <option value="C">C</option>
+                                <option value="D">D</option>
+                                <option value="E">E</option>
+                            </select>
+                        </label><br>
                         <label>Organization: <input type="text" name="org" required class="form-control"></label><br>
                         <label>Project: <input type="text" name="project" required class="form-control"></label><br>
                         <label>Attach PDF: <input type="file" name="pdf_attachment" accept="application/pdf" class="form-control"></label><br>
@@ -140,6 +159,7 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
+    <!-- Edit Issue Modal -->
     <!-- Edit Issue Modal -->
     <div class="modal fade" id="editIssueModal" tabindex="-1" aria-labelledby="editIssueModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -157,12 +177,25 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
                         <label>Priority: <input type="text" name="priority" id="edit-priority" required class="form-control"></label><br>
                         <label>Organization: <input type="text" name="org" id="edit-org" required class="form-control"></label><br>
                         <label>Project: <input type="text" name="project" id="edit-project" required class="form-control"></label><br>
+                        
+                        <?php if ($issue['pdf_attachment']): ?>
+                            <!-- Display existing PDF and option to remove it -->
+                            <div>
+                                <label>Current PDF: <a href="<?php echo htmlspecialchars($issue['pdf_attachment']); ?>" target="_blank">View PDF</a></label><br>
+                                <label><input type="checkbox" name="remove_pdf" value="1"> Remove existing PDF</label><br>
+                            </div>
+                        <?php else: ?>
+                            <!-- Option to upload a new PDF if none exists -->
+                            <label>Attach PDF: <input type="file" name="pdf_attachment" accept="application/pdf" class="form-control"></label><br>
+                        <?php endif; ?>
+
                         <button type="submit" class="btn btn-warning">Update Issue</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
+
 
     <!-- Bootstrap JS & Popper.js -->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
@@ -186,7 +219,8 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
             document.getElementById('edit-short-description').value = shortDescription;
             document.getElementById('edit-long-description').value = longDescription;
             document.getElementById('edit-open-date').value = openDate;
-            document.getElementById('edit-priority').value = priority;
+            document.querySelector('#edit-priority').value = priority;
+
             document.getElementById('edit-org').value = org;
             document.getElementById('edit-project').value = project;
         });

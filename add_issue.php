@@ -15,13 +15,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // Get the form data
     $short_description = $_POST['short_description'];
     $long_description = $_POST['long_description'];
-    $open_date = $_POST['open_date'];
+    $open_date = date('Y-m-d');
     $priority = $_POST['priority']; // Simple string for priority
     $org = $_POST['org'];
     $project = $_POST['project'];
 
     // Handle the PDF upload
-    $attachmentPath = null;  // Default value
+    $attachmentPath = "";  // Default value set to an empty string, not null
 
     if (isset($_FILES['pdf_attachment']) && $_FILES['pdf_attachment']['error'] === UPLOAD_ERR_OK) {
         $fileTmpPath = $_FILES['pdf_attachment']['tmp_name'];
@@ -91,43 +91,6 @@ if (isset($_GET['edit'])) {
     $result = $stmt->get_result();
     $edit_issue = $result->fetch_assoc();
 }
+
+$conn->close();
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($edit_issue) ? "Edit Issue" : "Add Issue"; ?></title>
-</head>
-<body>
-    <h1><?php echo isset($edit_issue) ? "Edit Issue" : "Add Issue"; ?></h1>
-
-    <form action="" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="id" value="<?php echo $edit_issue['id'] ?? ''; ?>">
-
-        <label>Short Description: <input type="text" name="short_description" value="<?php echo $edit_issue['short_description'] ?? ''; ?>" required></label><br>
-        <label>Long Description: <textarea name="long_description" required><?php echo $edit_issue['long_description'] ?? ''; ?></textarea></label><br>
-        <label>Open Date: <input type="date" name="open_date" value="<?php echo $edit_issue['open_date'] ?? ''; ?>" required></label><br>
-        <label>Priority: <input type="text" name="priority" value="<?php echo $edit_issue['priority'] ?? ''; ?>" required></label><br>
-        <label>Organization: <input type="text" name="org" value="<?php echo $edit_issue['org'] ?? ''; ?>" required></label><br>
-        <label>Project: <input type="text" name="project" value="<?php echo $edit_issue['project'] ?? ''; ?>" required></label><br>
-
-        <label for="pdf_attachment">Attach PDF (Max 2 MB):</label>
-        <input type="file" name="pdf_attachment" accept="application/pdf"><br>
-
-        <button type="submit" name="<?php echo isset($edit_issue) ? 'update' : 'add'; ?>">
-            <?php echo isset($edit_issue) ? 'Update Issue' : 'Add Issue'; ?>
-        </button>
-    </form>
-
-    <p><a href="issue_list.php">Back to Issue List</a></p>
-
-    <?php if (!empty($edit_issue['pdf_attachment'])): ?>
-        <p><a href="<?php echo htmlspecialchars($edit_issue['pdf_attachment']); ?>" target="_blank">View PDF</a></p>
-    <?php endif; ?>
-
-</body>
-</html>
-
-<?php $conn->close(); ?>

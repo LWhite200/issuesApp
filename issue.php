@@ -75,6 +75,44 @@ if (isset($_GET['delete_comment'])) {
 }
 
 
+// Handle issue resolve/unresolve toggle
+if ($user && isset($_GET['toggle_resolve'])) {
+    // Fetch the current issue's id
+    $issue_id = $_GET['id'];
+
+    // Get the current issue details
+    $stmt = $conn->prepare("SELECT close_date FROM iss_issues WHERE id = ?");
+    $stmt->bind_param("i", $issue_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $issue = $result->fetch_assoc();
+
+    if ($issue) {
+        // Toggle the resolved state by updating the closed_date
+        if ($issue['close_date'] === '0000-00-00' || empty($issue['close_date'])) {
+            // If the issue is not resolved, resolve it (set the current date as closed_date)
+            $current_date = date('Y-m-d');
+            $updateStmt = $conn->prepare("UPDATE iss_issues SET close_date = ? WHERE id = ?");
+            $updateStmt->bind_param("si", $current_date, $issue_id);
+            $updateStmt->execute();
+        } else {
+            // If the issue is resolved, unresolve it (set closed_date to '0000-00-00')
+            $updateStmt = $conn->prepare("UPDATE iss_issues SET close_date = '0000-00-00' WHERE id = ?");
+            $updateStmt->bind_param("i", $issue_id);
+            $updateStmt->execute();
+        }
+
+        // Redirect back to the issue page after toggling the resolve state
+        header("Location: issue.php?id=" . $issue_id);
+        exit();
+    } else {
+        die("Issue not found.");
+    }
+}
+
+
+
+
 // Handle adding a new comment
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['short_comment'], $_POST['long_comment'])) {
     $short_comment = $_POST['short_comment'];
@@ -95,6 +133,54 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['short_comment'], $_POS
         echo "Error adding comment: " . $conn->error;
     }
 }
+
+// Handle issue update via modal form
+// Handle issue update via modal form
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_issue'])) {
+    $short_description = $_POST['short_description'];
+    $long_description = $_POST['long_description'];
+    $priority = $_POST['priority'];
+    $org = $_POST['org'];
+    $project = $_POST['project'];
+    $pdf_attachment = $issue['pdf_attachment']; // retain existing unless changed
+
+    // Handle PDF removal
+    if (isset($_POST['remove_pdf']) && $issue['pdf_attachment']) {
+        $pdf_path = "uploads/" . $issue['pdf_attachment'];
+        if (file_exists($pdf_path)) {
+            unlink($pdf_path);
+        }
+        $pdf_attachment = null;
+    }
+
+    // Only allow new upload if no current PDF
+    if (empty($issue['pdf_attachment']) && isset($_FILES['pdf_attachment']) && $_FILES['pdf_attachment']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = "uploads/";
+        $new_pdf = uniqid() . '_' . basename($_FILES["pdf_attachment"]["name"]);
+        $target_file = $upload_dir . $new_pdf;
+
+        if (move_uploaded_file($_FILES["pdf_attachment"]["tmp_name"], $target_file)) {
+            $pdf_attachment = 'uploads/' . $new_pdf;
+
+        } else {
+            die("Failed to upload PDF.");
+        }
+    }
+
+    // Update the issue
+    $stmt = $conn->prepare("UPDATE iss_issues SET short_description = ?, long_description = ?, priority = ?, org = ?, project = ?, pdf_attachment = ? WHERE id = ?");
+    $stmt->bind_param("ssssssi", $short_description, $long_description, $priority, $org, $project, $pdf_attachment, $id);
+
+    if ($stmt->execute()) {
+        header("Location: issue.php?id=$id");
+        exit();
+    } else {
+        echo "Update failed: " . $conn->error;
+    }
+}
+
+
+
 
 // Handle the deletion
 if (isset($_GET['delete']) && $_GET['delete'] == $id) {
@@ -268,28 +354,60 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         <a href="issue_list.php" class="button">Back to Issue List</a>
         <h1>Issue Details</h1>
 
+        <?php if ($issue['close_date'] !== '0000-00-00' && !empty($issue['close_date'])): ?>
+            <div style="background-color: #28a745; color: white; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                ✅ This issue is resolved (close on <?php echo htmlspecialchars($issue['close_date']); ?>)
+            </div>
+        <?php else: ?>
+            <div style="background-color: #ffc107; color: black; padding: 10px; margin: 10px 0; border-radius: 5px;">
+                ⚠️ This issue is currently open
+            </div>
+        <?php endif; ?>
+
+
         <div class="card">
             <p><strong>ID:</strong> <?php echo $issue['id']; ?></p>
             <p><strong>Short Description:</strong> <?php echo htmlspecialchars($issue['short_description']); ?></p>
             <p><strong>Long Description:</strong> <?php echo htmlspecialchars($issue['long_description']); ?></p>
             <p><strong>Open Date:</strong> <?php echo htmlspecialchars($issue['open_date']); ?></p>
-            <p><strong>Closed Date:</strong> <?php echo htmlspecialchars($issue['closed_date'] ?? 'Open'); ?></p>
+            <p><strong>close Date:</strong> <?php echo htmlspecialchars($issue['close_date'] ?? 'Open'); ?></p>
             <p><strong>Priority:</strong> <?php echo htmlspecialchars($issue['priority']); ?></p>
             <p><strong>Organization:</strong> <?php echo htmlspecialchars($issue['org']); ?></p>
             <p><strong>Project:</strong> <?php echo htmlspecialchars($issue['project']); ?></p>
+            
             <?php if ($person): ?>
                 <p><strong>Person:</strong> <a href="person.php?id=<?php echo $person_id; ?>"><?php echo htmlspecialchars($person['fname']) . ' ' . htmlspecialchars($person['lname']); ?></a></p>
             <?php else: ?>
-                <p><strong>Person:</strong> Person deleted</p>
+                <p><strong>Person: </strong>[User Deleted]</p>
             <?php endif; ?>
+
+            <!-- PDF Attachment -->
+            <p><strong>PDF Attachment:</strong> 
+                <?php if ($issue['pdf_attachment']): ?>
+                    <!-- Please do not add uploads here -->
+                    <a href="<?php echo "" . htmlspecialchars($issue['pdf_attachment']); ?>" target="_blank">View PDF</a>
+
+                <?php else: ?>
+                    No PDF available.
+                <?php endif; ?>
+            </p>
+
         </div>
 
-        <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $issue['per_id'])): ?>
-            <div class="card">
-                <a href="edit_issue.php?id=<?php echo $issue['id']; ?>" class="button">Edit Issue</a>
+        <div class="card">
+            <!-- ✅ Resolve/Unresolve button visible to ANY logged-in user -->
+            <?php if ($user): ?>
+                <a href="issue.php?id=<?php echo $issue['id']; ?>&toggle_resolve=<?php echo $issue['id']; ?>" class="button">
+                    <?php echo ($issue['close_date'] === '0000-00-00' || empty($issue['close_date'])) ? 'Resolve' : 'Unresolve'; ?> Issue
+                </a>
+            <?php endif; ?>
+
+            <!-- ✅ Edit/Delete only for admin or issue owner -->
+            <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $issue['per_id'])): ?>
+                <button id="editIssueBtn" class="button">Edit Issue</button>
                 <a href="issue.php?id=<?php echo $issue['id']; ?>&delete=<?php echo $issue['id']; ?>" class="button">Delete Issue</a>
-            </div>
-        <?php endif; ?>
+            <?php endif; ?>
+        </div>
 
         <h2>Comments:</h2>
         <?php while ($comment = $commentResult->fetch_assoc()): ?>
@@ -301,18 +419,39 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             $commentPersonResult = $commentPersonStmt->get_result();
             $commentPerson = $commentPersonResult->fetch_assoc();
             ?>
-            <div class="card comment-card"> <!-- Added the 'comment-card' class here -->
-            <p><strong>Comment by:</strong> <?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?></p>
-            <p><a href="#" class="comment-link" data-fullname="<?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?>" data-longcomment="<?php echo htmlspecialchars($comment['long_comment']); ?>" data-posteddate="<?php echo htmlspecialchars($comment['posted_date']); ?>"><?php echo htmlspecialchars($comment['short_comment']); ?></a></p>
+            <div class="card comment-card">
+                <p><strong>Comment by:</strong> 
+                    <?php if ($commentPerson): ?>
+                        <a href="person.php?id=<?php echo $comment['per_id']; ?>">
+                            <?php echo htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']); ?>
+                        </a>
+                    <?php else: ?>
+                        <span>Deleted User</span>
+                    <?php endif; ?>
+                </p>
+                <p><a href="#" class="comment-link" 
+                    data-fullname="<?php echo $commentPerson ? htmlspecialchars($commentPerson['fname'] . ' ' . $commentPerson['lname']) : 'Deleted User'; ?>" 
+                    data-longcomment="<?php echo htmlspecialchars($comment['long_comment']); ?>" 
+                    data-posteddate="<?php echo htmlspecialchars($comment['posted_date']); ?>">
+                    <?php echo htmlspecialchars($comment['short_comment']); ?>
+                </a></p>
 
-                <!-- Display Delete Button if User is Admin or is the Comment Author -->
                 <?php if (($user && $user['admin'] == 1) || ($user && $user['id'] == $comment['per_id'])): ?>
                     <a href="issue.php?id=<?php echo $id; ?>&delete_comment=<?php echo $comment['id']; ?>" class="delete-btn" onclick="return confirm('Are you sure you want to delete this comment?');">Delete Comment</a>
+                    <button 
+                        class="edit-comment-btn button"
+                        data-comment-id="<?php echo $comment['id']; ?>"
+                        data-short-comment="<?php echo htmlspecialchars($comment['short_comment']); ?>"
+                        data-long-comment="<?php echo htmlspecialchars($comment['long_comment']); ?>"
+                    >
+                        Edit Comment
+                    </button>
                 <?php endif; ?>
             </div>
         <?php endwhile; ?>
 
         <button id="addCommentBtn" class="button">Add Comment</button>
+
 
         <!-- Modal for Adding Comment -->
         <div id="addCommentModal" class="modal">
@@ -334,23 +473,114 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         </div>
 
         <!-- Modal for displaying full comment details -->
-        <!-- Modal for displaying full comment details -->
         <div id="commentModal" class="modal">
             <div class="modal-content">
                 <span class="close" id="closeCommentModal">&times;</span>
                 <h2>Comment Details</h2>
-                <p><strong>Comment by:</strong> <span id="commentPerson"></span></p> <!-- This will now display the full name -->
+                <p><strong>Comment by:</strong> <span id="commentPerson"></span></p>
                 <p><strong>Posted on:</strong> <span id="commentDate"></span></p>
                 <p><strong>Full Comment:</strong></p>
                 <p id="commentLong"></p>
             </div>
         </div>
 
+
+
+
+        <!-- Modal for Editing Issue -->
+        <!-- Modal for Editing Issue -->
+        <!-- Edit Issue Modal -->
+        <div id="editIssueModal" class="modal">
+            <div class="modal-content">
+                <span class="close" id="closeEditIssueModal">&times;</span>
+                <h2>Edit Issue</h2>
+                <form action="issue.php?id=<?php echo $id; ?>" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="edit_issue" value="1">
+
+                    <div class="form-group">
+                        <label>Short Description:</label>
+                        <input type="text" name="short_description" value="<?php echo htmlspecialchars($issue['short_description']); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Long Description:</label>
+                        <textarea name="long_description" rows="4" required><?php echo htmlspecialchars($issue['long_description']); ?></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Priority:</label>
+                        <select name="priority" required>
+                            <?php foreach (['A', 'B', 'C', 'D', 'E'] as $level): ?>
+                                <option value="<?php echo $level; ?>" <?php echo ($issue['priority'] == $level) ? 'selected' : ''; ?>>
+                                    <?php echo $level; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Organization:</label>
+                        <input type="text" name="org" value="<?php echo htmlspecialchars($issue['org']); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Project:</label>
+                        <input type="text" name="project" value="<?php echo htmlspecialchars($issue['project']); ?>" required>
+                    </div>
+
+                    <?php if (!empty($issue['pdf_attachment'])): ?>
+                        <div class="form-group">
+                            <label>Current PDF:</label>
+                            <p>
+                                <a href="<?php echo 'uploads/' . htmlspecialchars($issue['pdf_attachment']); ?>" target="_blank">View PDF</a>
+
+                            </p>
+                            <label>
+                                <input type="checkbox" name="remove_pdf" value="1"> Remove existing PDF
+                            </label>
+                        </div>
+                    <?php else: ?>
+                        <div class="form-group">
+                            <label>Attach PDF:</label>
+                            <input type="file" name="pdf_attachment" accept=".pdf">
+                        </div>
+                    <?php endif; ?>
+
+                    <button type="submit" class="button">Save Changes</button>
+                </form>
+            </div>
+        </div>
+
+
+
+
+
+        <!-- Edit Comment Modal -->
+    <div id="editCommentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeEditCommentModal">&times;</span>
+            <h2>Edit Comment</h2>
+            <form action="edit_comment.php" method="POST">
+                <input type="hidden" name="comment_id" id="editCommentId">
+                <div class="form-group">
+                    <label for="editShortComment">Short Comment:</label>
+                    <input type="text" name="short_comment" id="editShortComment" required>
+                </div>
+                <div class="form-group">
+                    <label for="editLongComment">Long Comment:</label>
+                    <textarea name="long_comment" id="editLongComment" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="button">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+
+
+
     </div>
 
     <script>
-        // Modal for adding comment
-        // Modal for adding comment
         // Modal for adding comment
         var modal = document.getElementById("addCommentModal");
         var btn = document.getElementById("addCommentBtn");
@@ -371,43 +601,95 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         var closeCommentModal = document.getElementById("closeCommentModal");
 
         // Handle clicks on comment links
-        // Handle clicks on comment links
         document.querySelectorAll(".comment-link").forEach(function(link) {
             link.addEventListener("click", function(event) {
                 event.preventDefault();
 
-                // Get full name from the data-fullname attribute
-                var commentPersonName = link.getAttribute("data-fullname");  // Fetch the full name
+                var commentPersonName = link.getAttribute("data-fullname");
                 var postedDate = link.getAttribute("data-posteddate");
                 var longComment = link.getAttribute("data-longcomment");
 
-                // Insert the full name into the modal
-                document.getElementById("commentPerson").textContent = commentPersonName;  // Display the full name here
+                document.getElementById("commentPerson").textContent = commentPersonName;
                 document.getElementById("commentDate").textContent = postedDate;
                 document.getElementById("commentLong").textContent = longComment;
 
-                // Show the modal
-                commentModal.style.display = "block";  
+                commentModal.style.display = "block";
             });
         });
 
-
-        // Close the comment modal
         closeCommentModal.onclick = function() {
             commentModal.style.display = "none";
         }
 
-        // Close both modals when clicking outside of them
         window.onclick = function(event) {
-            if (event.target == modal) {  // If clicking outside the "Add Comment" modal
+            if (event.target == modal) {
                 modal.style.display = "none";
-            } else if (event.target == commentModal) {  // If clicking outside the comment modal
+            } else if (event.target == commentModal) {
                 commentModal.style.display = "none";
             }
         }
 
 
+        
+
+
+        // Modal for editing issue
+        document.addEventListener("DOMContentLoaded", function() {
+        document.querySelectorAll(".edit-comment-btn").forEach(function(button) {
+            button.addEventListener("click", function () {
+                var commentId = this.getAttribute("data-comment-id");
+                var shortComment = this.getAttribute("data-short-comment");
+                var longComment = this.getAttribute("data-long-comment");
+
+                document.getElementById("editCommentId").value = commentId;
+                document.getElementById("editShortComment").value = shortComment;
+                document.getElementById("editLongComment").value = longComment;
+
+                editCommentModal.style.display = "block";
+            });
+        });
+    });
+
+
+
+
+        // Edit Comment Modal
+        var editCommentModal = document.getElementById("editCommentModal");
+        var closeEditCommentModal = document.getElementById("closeEditCommentModal");
+
+        document.querySelectorAll(".edit-comment-btn").forEach(function(button) {
+            button.addEventListener("click", function () {
+                var commentId = this.getAttribute("data-comment-id");
+                var shortComment = this.getAttribute("data-short-comment");
+                var longComment = this.getAttribute("data-long-comment");
+
+                document.getElementById("editCommentId").value = commentId;
+                document.getElementById("editShortComment").value = shortComment;
+                document.getElementById("editLongComment").value = longComment;
+
+                editCommentModal.style.display = "block";
+            });
+        });
+
+        closeEditCommentModal.onclick = function () {
+            editCommentModal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            } else if (event.target == commentModal) {
+                commentModal.style.display = "none";
+            } else if (event.target == editIssueModal) {
+                editIssueModal.style.display = "none";
+            } else if (event.target == editCommentModal) {
+                editCommentModal.style.display = "none";
+            }
+        }
+
+
     </script>
+
 </body>
 </html>
 
