@@ -1,8 +1,3 @@
-<!-- mark issues as resolved -->
-<!-- edit comments -->
-
-<!-- deleting people (only admins) -->
-
 <?php
 include 'config.php';
 session_start();
@@ -24,18 +19,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
 
     // Check if the user is the one who created the issue or an admin
     if ($issue && ($user['id'] == $issue['per_id'] || $user['admin'] == 1)) {
-        // Proceed with deletion
+        // Delete comments associated with the issue
+        $conn->query("DELETE FROM iss_comments WHERE iss_id = $delete_id");
+
+        // Now delete the issue itself
         $conn->query("DELETE FROM iss_issues WHERE id = $delete_id");
+
         header("Location: issue_list.php"); // Redirect after deletion
         exit();
     } else {
-        // Unauthorized access
         echo "You are not authorized to delete this issue.";
     }
 }
 
-// Fetch all issues
-$issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
+// Default sorting is by ID
+$sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'id';
+$sort_direction = isset($_GET['direction']) && $_GET['direction'] === 'desc' ? 'desc' : 'asc';
+
+// Fetch all issues, and join with persons where the person exists and is not deleted
+$issues = $conn->query("
+    SELECT iss_issues.*, 
+           IFNULL(iss_persons.fname, '[Deleted User]') AS fname, 
+           IFNULL(iss_persons.lname, '') AS lname
+    FROM iss_issues
+    LEFT JOIN iss_persons ON iss_persons.id = iss_issues.per_id
+    ORDER BY $sort_column $sort_direction
+")->fetch_all(MYSQLI_ASSOC);
+
 ?>
 
 <!DOCTYPE html>
@@ -45,43 +55,68 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Issues List</title>
     <!-- Bootstrap CSS -->
+    <style>
+        th a {
+            display: inline-block;
+            width: 100%;
+            padding: 8px;
+        }
+        th a:hover {
+            text-decoration: underline;
+            color: #ffc107 !important; /* Bootstrap warning color */
+        }
+    </style>
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+
+
 <body>
-    <p><a href="logout.php">Logout Exit</a></p>
-    <h1>All Issues</h1>
+<div class="container my-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Logged in as <span class="text-primary"><?php echo htmlspecialchars($user['fname'] . ' ' . $user['lname']); ?></span></h5>
+        <a href="logout.php" class="btn btn-outline-secondary btn-sm">Logout</a>
+    </div>
+        
+    <h1 class="mb-4">All Issues</h1>
+    
+
 
     <!-- Button to trigger Add Issue modal -->
-    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addIssueModal">
-        Add New Issue
-    </button>
-
-    <!-- Go to Person List Button -->
-    <a href="persons_list.php" class="btn btn-secondary ms-2">
-        Go to Person List
-    </a>
-
-    <a href="comment_list.php" class="btn btn-secondary ms-2">
-        Go to Comment List
-    </a>
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addIssueModal">
+            Add New Issue
+        </button>
+        <a href="persons_list.php" class="btn btn-secondary">
+            Go to Person List
+        </a>
+        <a href="comment_list.php" class="btn btn-secondary">
+            Go to Comment List
+        </a>
+    </div>
 
     <?php if (count($issues) > 0): ?>
-        <table class="table table-bordered">
-            <thead>
+        <table class="table table-striped table-hover table-bordered align-middle">
+            <thead class="table-dark text-center">
                 <tr>
-                    <th>ID</th>
-                    <th>Short Description</th>
-                    <th>Open Date</th>
-                    <th>Close Date</th>
-                    <th>Priority</th>
-                    <th>Action</th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=id&direction=<?php echo ($sort_column == 'id' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">ID</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=short_description&direction=<?php echo ($sort_column == 'short_description' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Short Description</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=fname&direction=<?php echo ($sort_column == 'fname' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Created By</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=open_date&direction=<?php echo ($sort_column == 'open_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Open Date</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=close_date&direction=<?php echo ($sort_column == 'close_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Close Date</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=priority&direction=<?php echo ($sort_column == 'priority' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Priority</a></th>
+                    <th class="text-uppercase text-nowrap text-white">Action</th>
                 </tr>
             </thead>
+
             <tbody>
                 <?php foreach ($issues as $issue): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($issue['id']); ?></td>
                         <td><a href="issue.php?id=<?php echo $issue['id']; ?>"><?php echo htmlspecialchars($issue['short_description']); ?></a></td>
+                        <td><?php echo htmlspecialchars($issue['fname'] . ' ' . $issue['lname']); ?></td>
+
                         <td><?php echo htmlspecialchars($issue['open_date']); ?></td>
                         <td>
                             <?php echo ($issue['close_date'] === '0000-00-00' || empty($issue['close_date'])) ? 'Unresolved' : htmlspecialchars($issue['close_date']); ?>
@@ -225,6 +260,7 @@ $issues = $conn->query("SELECT * FROM iss_issues")->fetch_all(MYSQLI_ASSOC);
             document.getElementById('edit-project').value = project;
         });
     </script>
+</div> <!-- End container -->
 </body>
 </html>
 

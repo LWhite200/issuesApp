@@ -185,12 +185,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_issue'])) {
 // Handle the deletion
 if (isset($_GET['delete']) && $_GET['delete'] == $id) {
     if (($user && $user['admin'] == 1) || ($user && $user['id'] == $issue['per_id'])) {
-        // Perform deletion
+        // First delete comments associated with the issue
+        $deleteCommentsStmt = $conn->prepare("DELETE FROM iss_comments WHERE iss_id = ?");
+        $deleteCommentsStmt->bind_param("i", $id);
+        $deleteCommentsStmt->execute();
+
+        // Then delete the issue itself
         $deleteStmt = $conn->prepare("DELETE FROM iss_issues WHERE id = ?");
         $deleteStmt->bind_param("i", $id);
 
         if ($deleteStmt->execute()) {
-            // Redirect to issue list after successful deletion, no query parameters
             header("Location: issue_list.php?message=Issue deleted successfully");
             exit();
         } else {
@@ -200,6 +204,7 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
         die("You do not have permission to delete this issue.");
     }
 }
+
 ?>
 
 <!DOCTYPE html>
@@ -409,7 +414,13 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             <?php endif; ?>
         </div>
 
+
+
         <h2>Comments:</h2>
+        
+        <p><button id="addCommentBtn" class="button">Add Comment</button></p>
+
+
         <?php while ($comment = $commentResult->fetch_assoc()): ?>
             <?php
             // Fetch person details for the comment
@@ -450,7 +461,7 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             </div>
         <?php endwhile; ?>
 
-        <button id="addCommentBtn" class="button">Add Comment</button>
+        
 
 
         <!-- Modal for Adding Comment -->
@@ -635,6 +646,7 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
 
         // Modal for editing issue
         document.addEventListener("DOMContentLoaded", function() {
+            var editCommentModal = document.getElementById("editCommentModal");
         document.querySelectorAll(".edit-comment-btn").forEach(function(button) {
             button.addEventListener("click", function () {
                 var commentId = this.getAttribute("data-comment-id");
@@ -649,6 +661,27 @@ if (isset($_GET['delete']) && $_GET['delete'] == $id) {
             });
         });
     });
+
+
+        // Edit Comment Modal
+        // Modal for editing issue
+        var editModal = document.getElementById("editIssueModal");
+        var editBtn = document.getElementById("editIssueBtn");
+        var closeEdit = document.getElementById("closeEditIssueModal");
+
+        editBtn.onclick = function() {
+            editModal.style.display = "block";
+        }
+
+        closeEdit.onclick = function() {
+            editModal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == editModal) {
+                editModal.style.display = "none";
+            }
+        }
 
 
 
