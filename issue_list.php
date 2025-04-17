@@ -36,13 +36,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_id'])) {
 $sort_column = isset($_GET['sort']) ? $_GET['sort'] : 'id';
 $sort_direction = isset($_GET['direction']) && $_GET['direction'] === 'desc' ? 'desc' : 'asc';
 
-// Fetch all issues, and join with persons where the person exists and is not deleted
+// Toggle open-only filter
+$show_all = isset($_GET['show']) && $_GET['show'] === 'all';
+$where_clause = $show_all ? '' : "WHERE (iss_issues.close_date IS NULL OR iss_issues.close_date = '0000-00-00')";
+
+// Fetch filtered/sorted issues
 $issues = $conn->query("
     SELECT iss_issues.*, 
            IFNULL(iss_persons.fname, '[Deleted User]') AS fname, 
            IFNULL(iss_persons.lname, '') AS lname
     FROM iss_issues
     LEFT JOIN iss_persons ON iss_persons.id = iss_issues.per_id
+    $where_clause
     ORDER BY $sort_column $sort_direction
 ")->fetch_all(MYSQLI_ASSOC);
 
@@ -94,18 +99,27 @@ $issues = $conn->query("
         <a href="comment_list.php" class="btn btn-secondary">
             Go to Comment List
         </a>
+
+        <!-- To toggle if all or only non-closed issues are shown -->
+        <a class="btn btn-primary" href="issue_list.php?<?php
+            echo $show_all ? '' : 'show=all';
+            echo isset($_GET['sort']) ? '&sort=' . urlencode($_GET['sort']) : '';
+            echo isset($_GET['direction']) ? '&direction=' . urlencode($_GET['direction']) : '';
+        ?>">
+            <?php echo $show_all ? 'Show Only Open Issues' : 'Show All Issues'; ?>
+        </a>
     </div>
 
     <?php if (count($issues) > 0): ?>
         <table class="table table-striped table-hover table-bordered align-middle">
             <thead class="table-dark text-center">
                 <tr>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=id&direction=<?php echo ($sort_column == 'id' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">ID</a></th>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=short_description&direction=<?php echo ($sort_column == 'short_description' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Short Description</a></th>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=fname&direction=<?php echo ($sort_column == 'fname' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Created By</a></th>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=open_date&direction=<?php echo ($sort_column == 'open_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Open Date</a></th>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=close_date&direction=<?php echo ($sort_column == 'close_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Close Date</a></th>
-                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=priority&direction=<?php echo ($sort_column == 'priority' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?>">Priority</a></th>
+                <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=id&direction=<?php echo ($sort_column == 'id' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">ID</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=short_description&direction=<?php echo ($sort_column == 'short_description' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">Short Description</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=fname&direction=<?php echo ($sort_column == 'fname' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">Created By</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=open_date&direction=<?php echo ($sort_column == 'open_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">Open Date</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=close_date&direction=<?php echo ($sort_column == 'close_date' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">Close Date</a></th>
+                    <th class="text-uppercase text-nowrap"><a class="text-white text-decoration-none" href="?sort=priority&direction=<?php echo ($sort_column == 'priority' && $sort_direction == 'asc') ? 'desc' : 'asc'; ?><?php echo $show_all ? '&show=all' : ''; ?>">Priority</a></th>
                     <th class="text-uppercase text-nowrap text-white">Action</th>
                 </tr>
             </thead>
